@@ -1,0 +1,29 @@
+{
+  "name": "المتصرف",
+  "short_name": "المتصرف",
+  "description": "تطبيق إدارة المصاريف الشخصية",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F4F6FF",
+  "theme_color": "#4F6BED",
+  "dir": "rtl",
+  "lang": "ar",
+  "scope": "./",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "categories": ["finance", "productivity"]
+}
