@@ -757,8 +757,8 @@ main{flex:1;overflow:hidden;position:relative}
 // ═══════════════════════════════════════════════════════════════
 const MONTHS=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 const INC_CATS=['الراتب','عمل حر','مكافأة','هدية','عوائد استثمارية','إيجار مستلم','أخرى'];
-const EXP_CATS=['سكن وإيجار','طعام وشراب','مواصلات','صحة','ترفيه','ملابس','تعليم','اجتماعي','فواتير','قروض وأقساط','زكاة','أخرى'];
-const CAT_IC={'الراتب':'💼','عمل حر':'💻','مكافأة':'🎁','هدية':'🎀','عوائد استثمارية':'📈','إيجار مستلم':'🏘️','سكن وإيجار':'🏠','طعام وشراب':'🍽️','مواصلات':'🚗','صحة':'🏥','ترفيه':'🎬','ملابس':'👗','تعليم':'📚','اجتماعي':'👥','فواتير':'📄','قروض وأقساط':'💳','زكاة':'🌙','تحويل':'⇄','أخرى':'•'};
+const EXP_CATS=['سكن وإيجار','بقالة','صيدلية','طعام وشراب','مطعم','تسوق','مواصلات','صحة','ترفيه','ملابس','تعليم','اجتماعي','فواتير','قروض وأقساط','زكاة','أخرى'];
+const CAT_IC={'الراتب':'💼','عمل حر':'💻','مكافأة':'🎁','هدية':'🎀','عوائد استثمارية':'📈','إيجار مستلم':'🏘️','سكن وإيجار':'🏠','مقاضي':'🛒','صيدلية':'💊','طعام وشراب':'🍽️','مطعم':'🍔','تسوق':'🛍️','مواصلات':'🚗','صحة':'🏥','ترفيه':'🎬','ملابس':'👗','تعليم':'📚','اجتماعي':'👥','فواتير':'📄','قروض وأقساط':'💳','زكاة':'🌙','تحويل':'⇄','أخرى':'•'};
 const WALLET_TYPES={'bank':'حساب بنكي','cash':'نقدي','savings':'مدخرات','invest':'استثمار','digital':'رقمي','gold':'ذهب'};
 const AVATAR_CLR=['#4F6BED','#22C993','#F05D73','#F59E0B','#8B5CF6','#EC4899','#14B8A6','#F97316'];
 const PIE_CLR=['#4F6BED','#22C993','#F05D73','#F59E0B','#8B5CF6','#14B8A6','#F97316','#EC4899','#06B6D4','#84CC16'];
@@ -781,16 +781,17 @@ const S={
 // ═══════════════════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════════════════
+
 const CFG={
-  get mode()    {return localStorage.getItem('mode')||'guest';},
-  get url()     {return localStorage.getItem('scriptUrl')||'';},
-  get currency(){return localStorage.getItem('currency')||'د.أ';},
-  get name()    {return localStorage.getItem('userName')||'مستخدم';},
+  get mode()    {return localStorage.getItem('mts_mode')||'guest';},
+  get url()     {return localStorage.getItem('mts_scriptUrl')||'';},
+  get currency(){return localStorage.getItem('mts_currency')||'د.أ';},
+  get name()    {return localStorage.getItem('mts_userName')||'مستخدم';},
   get pinHash() {return localStorage.getItem('mts_pin_hash')||'';},
-  set mode(v)   {localStorage.setItem('mode',v);},
-  set url(v)    {localStorage.setItem('scriptUrl',v);},
-  set currency(v){localStorage.setItem('currency',v);},
-  set name(v)   {localStorage.setItem('userName',v);},
+  set mode(v)   {localStorage.setItem('mts_mode',v);},
+  set url(v)    {localStorage.setItem('mts_scriptUrl',v);},
+  set currency(v){localStorage.setItem('mts_currency',v);},
+  set name(v)   {localStorage.setItem('mts_userName',v);},
   set pinHash(v){localStorage.setItem('mts_pin_hash',v);},
 };
 
@@ -1280,16 +1281,24 @@ async function renderHome(){
 // WALLETS
 // ═══════════════════════════════════════════════════════════════
 async function renderWallets(){
-  const el=document.getElementById('wallets-body');el.innerHTML='<div class="spinner sp-sm" style="margin-top:40px"></div>';
-  const ws=await DB.getWallets();S.wallets=ws;
+  const el=document.getElementById('wallets-body');
+  el.innerHTML='<div class="spinner sp-sm" style="margin-top:40px"></div>';
+  const ws=await DB.getWallets();
+  S.wallets=ws;
+  
+  // Find main wallet, fallback to first if none marked
   const main=ws.find(w=>w.isMain)||ws[0];
-  const others=ws.filter(w=>w.id!==main?.id);
+  
   let html='';
-  if(main){html+=`<div style="font-size:11px;font-weight:800;color:var(--c-text-3);margin-bottom:8px;letter-spacing:.5px">⭐ المحفظة الرئيسية</div>`;html+=walletCardHTML(main,true);}
-  html+=`<button class="btn btn-outline" style="margin:12px 0;display:flex;align-items:center;gap:8px;border-color:var(--c-gold);color:var(--c-gold)" onclick="go('wealth',null)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>عرض إجمالي ثروتي (${ws.length} محافظ)</button>`;
-  if(others.length){html+=`<div class="hidden-wallets-toggle" onclick="toggleHiddenWallets()"><span class="hwt-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>المحافظ الأخرى المخفية <span class="hwt-count">${others.length}</span></span><svg id="hwt-arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--c-text-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${S.showHidden?'90':'0'}deg);transition:.2s"><polyline points="9 18 15 12 9 6"/></svg></div><div id="hidden-list" style="display:${S.showHidden?'flex':'none'};flex-direction:column;gap:10px;margin-top:10px">${others.map(w=>walletCardHTML(w,false)).join('')}</div>`;}
+  if(main){
+    html+=`<div style="font-size:11px;font-weight:800;color:var(--c-text-3);margin-bottom:8px;letter-spacing:.5px">⭐ المحفظة الرئيسية</div>`;
+    html+=walletCardHTML(main,true);
+  } else {
+    html+=`<div class="empty"><div class="empty-title">لا توجد محفظة رئيسية</div></div>`;
+  }
+  
   html+=`<button class="btn btn-outline mt-12" onclick="openTransferModal()" style="display:flex;align-items:center;justify-content:center;gap:8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>تحويل بين المحافظ</button>`;
-  html+=`<button class="add-wallet-card mt-12" onclick="openAddWallet()"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--c-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><div style="font-size:13px;font-weight:700;color:var(--c-primary)">إضافة محفظة جديدة</div></button>`;
+  
   el.innerHTML=html;
 }
 
@@ -1398,10 +1407,38 @@ function openAddTx(type='income'){document.getElementById('m-tx-title').textCont
 function openEditTx(t){const isFut=t.isFuture===true;document.getElementById('m-tx-title').textContent='تعديل المعاملة';document.getElementById('txid').value=t.id;document.getElementById('txamt').value=t.amount;document.getElementById('txdesc').value=t.desc||t.description||'';document.getElementById('txdate').value=t.date?.substring?.(0,10)||new Date(t.date).toISOString().substring(0,10);document.getElementById('tx-del-btn').classList.remove('hidden');setTxType(isFut?'future':t.type,null);fillWalSel('txwal',t.walletId);fillCatSel('txcat',t.type==='income'?'income':'expense',t.category);openM('m-tx');}
 function setTxType(type,btn){document.getElementById('tx-type-val').value=type;document.querySelectorAll('#m-tx .type-opt').forEach(b=>b.classList.remove('on'));if(btn)btn.classList.add('on');else{const bs=document.querySelectorAll('#m-tx .type-opt');if(type==='income')bs[0].classList.add('on');else if(type==='expense')bs[1].classList.add('on');else bs[2].classList.add('on');}fillCatSel('txcat',type==='future'||type==='expense'?'expense':'income');}
 async function saveTx(){
-  const id=document.getElementById('txid').value;const type=document.getElementById('tx-type-val').value;const amount=parseFloat(document.getElementById('txamt').value);const date=document.getElementById('txdate').value;const walletId=document.getElementById('txwal').value;const category=document.getElementById('txcat').value;const desc=document.getElementById('txdesc').value.trim();
-  if(!amount||amount<=0){toast('أدخل مبلغاً صحيحاً','err');return;}if(!date){toast('اختر التاريخ','err');return;}if(!walletId){toast('اختر المحفظة','err');return;}
-  const isFuture=type==='future';const txType=isFuture?'expense':type;const wal=S.wallets.find(w=>w.id===walletId);
-  showLoad(true);try{const payload={date,type:txType,amount,category,walletId,walletName:wal?.name||'',desc,isFuture};if(id)await DB.updateTx({id,...payload});else await DB.addTx(payload);closeM();toast(id?'تم التحديث':'تمت الإضافة','ok');S.wallets=await DB.getWallets();await renderTx();}catch(e){toast(e.message,'err');}showLoad(false);
+  const id=document.getElementById('txid').value;
+  const type=document.getElementById('tx-type-val').value;
+  const amount=parseFloat(document.getElementById('txamt').value);
+  const date=document.getElementById('txdate').value;
+  const walletId=document.getElementById('txwal').value;
+  const category=document.getElementById('txcat').value;
+  const desc=document.getElementById('txdesc').value.trim();
+  
+  if(!amount||amount<=0){toast('أدخل مبلغاً صحيحاً','err');return;}
+  if(!date){toast('اختر التاريخ','err');return;}
+  if(!walletId){toast('اختر المحفظة','err');return;}
+  
+  const isFuture=type==='future';
+  const txType=isFuture?'expense':type;
+  const wal=S.wallets.find(w=>w.id===walletId);
+  
+  showLoad(true);
+  try{
+    // FIX: Changed "desc" to "description: desc"
+    const payload={date,type:txType,amount,category,walletId,walletName:wal?.name||'',description:desc,isFuture};
+    
+    if(id) await DB.updateTx({id,...payload});
+    else await DB.addTx(payload);
+    
+    closeM();
+    toast(id?'تم التحديث':'تمت الإضافة','ok');
+    S.wallets=await DB.getWallets();
+    await renderTx();
+  }catch(e){
+    toast(e.message,'err');
+  }
+  showLoad(false);
 }
 async function delTx(){const id=document.getElementById('txid').value;if(!id||!confirm('حذف؟'))return;showLoad(true);try{await DB.delTx(id);closeM();toast('تم الحذف','ok');S.wallets=await DB.getWallets();await renderTx();}catch(e){toast(e.message,'err');}showLoad(false);}
 
@@ -1409,8 +1446,37 @@ async function delTx(){const id=document.getElementById('txid').value;if(!id||!c
 // TRANSFER
 // ═══════════════════════════════════════════════════════════════
 function openTransferModal(){fillWalSelAll('tr-from');fillWalSelAll('tr-to');document.getElementById('tr-amt').value='';document.getElementById('tr-date').value=today();openM('m-transfer');}
-async function saveTransfer(){const fromId=document.getElementById('tr-from').value,toId=document.getElementById('tr-to').value;const amount=parseFloat(document.getElementById('tr-amt').value),date=document.getElementById('tr-date').value;if(!fromId||!toId||fromId===toId){toast('اختر محافظ مختلفة','err');return;}if(!amount||amount<=0){toast('أدخل مبلغاً','err');return;}showLoad(true);try{await DB.transfer({fromId,toId,amount,date});closeM();toast('تم التحويل','ok');S.wallets=await DB.getWallets();await renderWallets();}catch(e){toast(e.message,'err');}showLoad(false);}
+async function saveTransfer(){
+  const fromId=document.getElementById('tr-from').value,toId=document.getElementById('tr-to').value;
+  const amount=parseFloat(document.getElementById('tr-amt').value),date=document.getElementById('tr-date').value;
+  
+  if(!fromId||!toId||fromId===toId){toast('اختر محافظ مختلفة','err');return;}
+  if(!amount||amount<=0){toast('أدخل مبلغاً','err');return;}
 
+  const fw = S.wallets.find(w => w.id === fromId);
+  const tw = S.wallets.find(w => w.id === toId);
+
+  // If dealing with non-main wallets, require auth
+  if ((fw && !fw.isMain) || (tw && !tw.isMain)) {
+    if (CFG.pinHash) {
+      const pinStr = prompt("هذه المحفظة محمية. الرجاء إدخال الرمز السري (4 أرقام):");
+      if (!pinStr) return;
+      const isOk = await checkPIN(pinStr);
+      if (!isOk) {
+        toast("الرمز السري خاطئ!", "err");
+        return;
+      }
+    }
+  }
+  showLoad(true);
+  try{
+    await DB.transfer({fromId,toId,amount,date});
+    closeM();toast('تم التحويل','ok');
+    S.wallets=await DB.getWallets();
+    await renderWallets();
+  }catch(e){toast(e.message,'err');}
+  showLoad(false);
+}
 // ═══════════════════════════════════════════════════════════════
 // DEBTS
 // ═══════════════════════════════════════════════════════════════
@@ -1430,8 +1496,35 @@ function openEditDebt(d){closeM();setTimeout(()=>{document.getElementById('m-deb
 function setDebtType(type,btn){document.getElementById('d-type-val').value=type;document.querySelectorAll('#m-debt .type-opt').forEach(b=>b.classList.remove('on'));if(btn)btn.classList.add('on');else document.querySelectorAll('#m-debt .type-opt')[type==='recv'?0:1]?.classList.add('on');}
 async function saveDebt(){const id=document.getElementById('did').value,name=document.getElementById('dname').value.trim();const amt=parseFloat(document.getElementById('damt').value);if(!name){toast('أدخل الاسم','err');return;}if(!amt||amt<=0){toast('أدخل مبلغاً','err');return;}const payload={id,contactName:name,contactPhone:document.getElementById('dphone').value.trim(),debtType:document.getElementById('d-type-val').value,totalAmount:amt,startDate:document.getElementById('dstart').value,dueDate:document.getElementById('ddue').value,notes:document.getElementById('dnotes').value.trim()};showLoad(true);try{if(id)await DB.updateDebt(payload);else await DB.addDebt(payload);closeM();toast(id?'تم':'تمت الإضافة','ok');await renderDebts();}catch(e){toast(e.message,'err');}showLoad(false);}
 async function delDebt(){const id=document.getElementById('did').value;if(!id||!confirm('حذف؟'))return;showLoad(true);try{await DB.delDebt(id);closeM();toast('تم الحذف','ok');await renderDebts();}catch(e){toast(e.message,'err');}showLoad(false);}
-function openAddDebtPay(debtId,debtType){document.getElementById('dp-debt-id').value=debtId;document.getElementById('dp-debt-type').value=debtType;document.getElementById('dp-amt').value='';document.getElementById('dp-date').value=today();document.getElementById('dp-notes').value='';const wg=document.getElementById('dp-wal-grp');if(debtType==='pay'){wg.classList.remove('hidden');fillWalSel('dp-wal');}else wg.classList.add('hidden');openM('m-dpay');}
-async function saveDebtPay(){const debtId=document.getElementById('dp-debt-id').value,debtType=document.getElementById('dp-debt-type').value;const amount=parseFloat(document.getElementById('dp-amt').value),date=document.getElementById('dp-date').value;const walletId=document.getElementById('dp-wal').value,notes=document.getElementById('dp-notes').value.trim();if(!amount||amount<=0){toast('أدخل مبلغاً','err');return;}showLoad(true);try{await DB.addDPay({debtId,amount,date,walletId:debtType==='pay'?walletId:'',debtType,notes});closeM();toast('تم','ok');S.wallets=await DB.getWallets();await renderDebts();}catch(e){toast(e.message,'err');}showLoad(false);}
+function openAddDebtPay(debtId,debtType){
+  document.getElementById('dp-debt-id').value=debtId;
+  document.getElementById('dp-debt-type').value=debtType;
+  document.getElementById('dp-amt').value='';
+  document.getElementById('dp-date').value=today();
+  document.getElementById('dp-notes').value='';
+  // ALWAYS show the wallet group so you can select where the money goes/comes from
+  const wg=document.getElementById('dp-wal-grp');
+  wg.classList.remove('hidden');
+  fillWalSel('dp-wal');
+  
+  openM('m-dpay');
+}
+async function saveDebtPay(){
+  const debtId=document.getElementById('dp-debt-id').value,debtType=document.getElementById('dp-debt-type').value;
+  const amount=parseFloat(document.getElementById('dp-amt').value),date=document.getElementById('dp-date').value;
+  const walletId=document.getElementById('dp-wal').value,notes=document.getElementById('dp-notes').value.trim();
+  
+  if(!amount||amount<=0){toast('أدخل مبلغاً','err');return;}
+  showLoad(true);
+  try{
+    // Pass the walletId directly without checking the debtType
+    await DB.addDPay({debtId,amount,date,walletId,debtType,notes});
+    closeM();toast('تم','ok');
+    S.wallets=await DB.getWallets();
+    await renderDebts();
+  }catch(e){toast(e.message,'err');}
+  showLoad(false);
+}
 async function delDebtPay(id){if(!confirm('حذف؟'))return;showLoad(true);try{await DB.delDPay(id);toast('تم الحذف','ok');closeM();S.wallets=await DB.getWallets();await renderDebts();}catch(e){toast(e.message,'err');}showLoad(false);}
 
 // ═══════════════════════════════════════════════════════════════
@@ -1464,7 +1557,24 @@ async function renderZakat(){
   else if(isEar)alerts+=`<div class="alert warn"><div style="font-size:18px">⚠️</div><div><div class="alert-title">${z.daysLeft} يوم على انتهاء الحول</div><div class="alert-desc">استعد لإخراج زكاة مالك</div></div></div>`;
   if(!z.isEligible&&z.nisab>0)alerts+=`<div class="alert info"><div style="font-size:18px">ℹ️</div><div><div class="alert-title">مالك لم يبلغ النصاب بعد</div><div class="alert-desc">النصاب: ${fmtC(z.nisab)} — وعاؤك المؤهل: ${fmtC(z.eligible)}</div></div></div>`;
   let paysH='';if(z.payments?.length)z.payments.slice().reverse().forEach(p=>{paysH+=`<div class="pay-list-item"><div><div style="font-size:13px;font-weight:700">${p.recipient||'غير محدد'}</div><div style="font-size:11px;color:var(--c-text-3)">${fmtDate(p.date)}${p.notes?' · '+p.notes:''}</div></div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;font-weight:900;color:var(--c-green)">${fmtC(p.amount)}</span><button onclick="delZakatPay('${p.id}')" style="background:none;border:none;cursor:pointer;color:var(--c-text-3)">🗑️</button></div></div>`;});else paysH='<div style="text-align:center;color:var(--c-text-3);padding:20px;font-size:13px">لا مدفوعات مسجلة</div>';
-  el.innerHTML=`${alerts}<div class="zakat-hero"><div style="font-size:13px;font-weight:700;margin-bottom:14px;opacity:.9">🌙 حاسبة زكاة المال التلقائية</div><div class="z-row"><span class="z-lbl">النصاب (${z.settings?.nisabGrams||85} جرام × ${fmtC(S.goldPrice21||0)}/غ)</span><span class="z-val">${fmtC(z.nisab)}</span></div><div class="z-row"><span class="z-lbl">الديون المخصومة منك</span><span class="z-val">(−) ${fmtC(z.payableDebt)}</span></div><div class="z-row"><span class="z-lbl">الوعاء الزكوي المؤهَّل</span><span class="z-val">${fmtC(z.eligible)}</span></div><hr class="z-divider"/><div class="z-row"><span class="z-lbl" style="font-size:14px;font-weight:700;opacity:1">زكاة المال الواجبة (2.5%)</span><span class="z-val" style="font-size:26px">${fmtC(z.zakatDue)}</span></div></div>
+// Inside renderZakat() replace the template literal assigned to el.innerHTML containing the zakat-hero class
+  el.innerHTML=`${alerts}
+    <div class="zakat-hero">
+      <div style="font-size:13px;font-weight:700;margin-bottom:14px;opacity:.9">🌙 حاسبة زكاة المال التلقائية</div>
+      <div class="z-row">
+        <span class="z-lbl">النصاب (${z.settings?.nisabGrams||85} جرام × ${fmtC(S.goldPrice21||0)}/غ)</span>
+        <span class="z-val">${fmtC(z.nisab)}</span>
+      </div>
+      <div class="z-row">
+        <span class="z-lbl">الديون المخصومة منك</span>
+        <span class="z-val">(−) ${fmtC(z.payableDebt)}</span>
+      </div>
+      <hr class="z-divider"/>
+      <div class="z-row">
+        <span class="z-lbl" style="font-size:14px;font-weight:700;opacity:1">زكاة المال الواجبة (2.5%)</span>
+        <span class="z-val" style="font-size:26px">${fmtC(z.zakatDue)}</span>
+      </div>
+    </div>
     <div class="z-stats"><div class="z-stat"><div class="z-stat-l">الواجبة</div><div class="z-stat-v clr-green">${fmtC(z.zakatDue)}</div></div><div class="z-stat"><div class="z-stat-l">المتبقي للأداء</div><div class="z-stat-v clr-red">${fmtC(z.remaining)}</div></div></div>
     ${z.settings?.hawlStartDate?`<div class="card" style="padding:14px;margin-bottom:14px"><div style="font-size:12px;font-weight:800;color:var(--c-text-2);margin-bottom:8px">تقدم الحول (354 يوم هجري)</div><div class="hawl-wrap"><div class="hawl-fill" style="width:${hp}%"></div></div><div class="hawl-dates"><span>بداية: ${fmtDate(z.settings.hawlStartDate)}</span><span>${z.daysLeft!==null&&z.daysLeft>0?z.daysLeft+' يوم':z.daysLeft===0?'اليوم':'انتهى الحول'}</span><span>نهاية: ${z.hawlEndDate?fmtDate(z.hawlEndDate):'-'}</span></div></div>`:''}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px"><button class="btn btn-primary" onclick="openZakatPayModal()">+ تسجيل دفع</button><button class="btn btn-outline" onclick="openZakatCfgModal()">⚙️ الإعدادات</button></div>
