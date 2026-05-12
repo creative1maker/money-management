@@ -1024,14 +1024,42 @@ const LDB={
 };
 
 // ═══════════════════════════════════════════════════════════════
-// REMOTE API
+// REMOTE API WITH HIGH-SPEED CACHING
 // ═══════════════════════════════════════════════════════════════
+const MTS_CACHE = {};
+
 async function remoteAPI(action,payload={}){
   if(!CFG.url)throw new Error('لم يتم تعيين رابط Script');
+  
+  // 1. Identify if this action changes data (not a "get" request)
+  const isMutation = !action.startsWith('get') && action !== 'exportCSV';
+  
+  // 2. If it changes data, clear the cache to force a fresh fetch next time
+  if (isMutation) {
+    Object.keys(MTS_CACHE).forEach(k => delete MTS_CACHE[k]);
+  }
+  
+  // 3. If it's a read request and we already have the data, return it instantly
+  const cacheKey = action + JSON.stringify(payload);
+  if (!isMutation && MTS_CACHE[cacheKey]) {
+    return MTS_CACHE[cacheKey];
+  }
+
+  // 4. Otherwise, fetch from Google Apps Script
   const url=new URL(CFG.url);url.searchParams.set('action',action);
   if(Object.keys(payload).length)url.searchParams.set('payload',JSON.stringify(payload));
-  const r=await fetch(url.toString());if(!r.ok)throw new Error('HTTP '+r.status);
-  const d=await r.json();if(!d.success)throw new Error(d.error||'خطأ');return d.data;
+  
+  const r=await fetch(url.toString());
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const d=await r.json();
+  if(!d.success)throw new Error(d.error||'خطأ');
+  
+  // 5. Save the fresh data to the cache
+  if (!isMutation) {
+    MTS_CACHE[cacheKey] = d.data;
+  }
+  
+  return d.data;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1286,7 +1314,6 @@ async function renderWallets(){
   const ws=await DB.getWallets();
   S.wallets=ws;
   
-  // Find main wallet, fallback to first if none marked
   const main=ws.find(w=>w.isMain)||ws[0];
   
   let html='';
@@ -1299,9 +1326,11 @@ async function renderWallets(){
   
   html+=`<button class="btn btn-outline mt-12" onclick="openTransferModal()" style="display:flex;align-items:center;justify-content:center;gap:8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>تحويل بين المحافظ</button>`;
   
+  // Restored: Add Wallet Button
+  html+=`<button class="add-wallet-card mt-12" onclick="openAddWallet()"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--c-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><div style="font-size:13px;font-weight:700;color:var(--c-primary)">إضافة محفظة جديدة</div></button>`;
+
   el.innerHTML=html;
 }
-
 function walletCardHTML(w,isMain){
   const isGold=w.type==='gold';
   return`<div class="wallet-item ${isMain?'is-main':''} ${isGold?'is-gold':''}"><div class="w-ic" style="background:${w.color||'#4F6BED'}22;color:${w.color||'#4F6BED'}">${w.icon||'💼'}</div><div class="w-info"><div class="w-name">${w.name}${isMain?'<span class="w-main-badge">رئيسية</span>':''}</div><div class="w-type">${WALLET_TYPES[w.type]||w.type}${isGold&&w.goldGrams?' · '+fmt(w.goldGrams)+' غرام':''}</div></div><div class="w-amount" style="color:${isGold?'var(--c-gold)':w.balance<0?'var(--c-red)':w.color||'var(--c-primary)'}">${fmtC(w.balance)}</div><div class="w-actions"><button class="ic-btn" onclick='openEditWallet(${JSON.stringify(w)})'><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div></div>`;
@@ -1375,8 +1404,25 @@ async function renderWealth(){
   const goldWs=ws.filter(w=>w.type==='gold');const goldTotal=goldWs.reduce((s,w)=>s+w.balance,0);const goldGrams=goldWs.reduce((s,w)=>s+(w.goldGrams||0),0);
   let html=`<div class="wealth-hero"><div class="wh-label">صافي ثروتك الإجمالية</div><div class="wh-amount"><span class="wh-curr">${CFG.currency}</span> ${fmt(netW)}</div><div class="wh-grid"><div class="wh-mini"><div class="wh-mini-l">💰 إجمالي الأصول</div><div class="wh-mini-v">${fmtC(tAssets)}</div></div><div class="wh-mini"><div class="wh-mini-l">🥇 ذهب (${fmt(goldGrams)} غ)</div><div class="wh-mini-v">${fmtC(goldTotal)}</div></div><div class="wh-mini"><div class="wh-mini-l">📥 مستحقات لك</div><div class="wh-mini-v">${fmtC(tRecv)}</div></div><div class="wh-mini"><div class="wh-mini-l">📤 ديون عليك</div><div class="wh-mini-v">${fmtC(tDebt)}</div></div></div></div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div class="section-title">تفصيل كل المحافظ</div><button class="wealth-lock-btn" onclick="S.wealthUnlocked=false;renderWealthLock()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>قفل</button></div>`;
-  ws.forEach(w=>{const pct=tAssets>0?Math.min(100,(w.balance/tAssets*100)).toFixed(0):0;const isGold=w.type==='gold';html+=`<div class="w-breakdown-item"><div class="wb-ic" style="background:${w.color||'#4F6BED'}22;color:${w.color||'#4F6BED'}">${w.icon||'💼'}</div><div class="wb-info"><div class="wb-name">${w.name}${w.isMain?' ⭐':''}</div><div class="wb-type">${WALLET_TYPES[w.type]||w.type}${isGold&&w.goldGrams?' · '+fmt(w.goldGrams)+' غرام عيار '+(w.goldKarat||21):''}</div><div class="wb-pct-bar"><div class="wb-pct-fill" style="width:${pct}%;background:${isGold?'var(--c-gold)':w.color||'var(--c-primary)'}"></div></div></div><div class="wb-amt" style="color:${isGold?'var(--c-gold)':w.balance<0?'var(--c-red)':w.color||'var(--c-primary)'}">${fmtC(w.balance)}<div style="font-size:10px;color:var(--c-text-3);font-weight:600">${pct}%</div></div></div>`;});
-  if(debts.filter(d=>d.status==='active').length){html+=`<div class="section-hdr mt-12"><span class="section-title">الديون والمستحقات</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px"><div class="z-stat"><div class="z-stat-l" style="color:var(--c-green)">💰 مستحقات لك</div><div class="z-stat-v clr-green">${fmtC(tRecv)}</div></div><div class="z-stat"><div class="z-stat-l" style="color:var(--c-red)">🤝 عليك ديون</div><div class="z-stat-v clr-red">${fmtC(tDebt)}</div></div></div>`;}
+  ws.forEach(w=>{
+      const pct=tAssets>0?Math.min(100,(w.balance/tAssets*100)).toFixed(0):0;
+      const isGold=w.type==='gold';
+      
+      // Made clickable with onclick and added cursor pointer
+      html+=`<div class="w-breakdown-item" style="cursor:pointer" onclick='closeM(); openEditWallet(${JSON.stringify(w).replace(/'/g,"&#39;")})'>
+        <div class="wb-ic" style="background:${w.color||'#4F6BED'}22;color:${w.color||'#4F6BED'}">${w.icon||'💼'}</div>
+        <div class="wb-info">
+          <div class="wb-name">${w.name}${w.isMain?' ⭐':''}</div>
+          <div class="wb-type">${WALLET_TYPES[w.type]||w.type}${isGold&&w.goldGrams?' · '+fmt(w.goldGrams)+' غرام عيار '+(w.goldKarat||21):''}</div>
+          <div class="wb-pct-bar"><div class="wb-pct-fill" style="width:${pct}%;background:${isGold?'var(--c-gold)':w.color||'var(--c-primary)'}"></div></div>
+        </div>
+        <div class="wb-amt" style="color:${isGold?'var(--c-gold)':w.balance<0?'var(--c-red)':w.color||'var(--c-primary)'}">
+          ${fmtC(w.balance)}
+          <div style="font-size:10px;color:var(--c-text-3);font-weight:600">${pct}%</div>
+        </div>
+        <div style="padding-right:8px;color:var(--c-text-3)">✏️</div>
+      </div>`;
+    });  if(debts.filter(d=>d.status==='active').length){html+=`<div class="section-hdr mt-12"><span class="section-title">الديون والمستحقات</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px"><div class="z-stat"><div class="z-stat-l" style="color:var(--c-green)">💰 مستحقات لك</div><div class="z-stat-v clr-green">${fmtC(tRecv)}</div></div><div class="z-stat"><div class="z-stat-l" style="color:var(--c-red)">🤝 عليك ديون</div><div class="z-stat-v clr-red">${fmtC(tDebt)}</div></div></div>`;}
   if(S.goldPrice21&&goldGrams>0){html+=`<div class="card" style="padding:14px;margin-top:10px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><span style="font-size:13px;font-weight:800">🥇 تفاصيل الذهب</span><span class="gpt-status ${S.goldStatus}">${{live:'مباشر',cached:'مخزن',offline:'غير متصل'}[S.goldStatus]||'--'}</span></div><div style="font-size:12px;color:var(--c-text-2)">إجمالي الغرامات: <b>${fmt(goldGrams)} غرام</b></div><div style="font-size:12px;color:var(--c-text-2);margin-top:4px">سعر الغرام 21 عيار: <b>${fmtC(S.goldPrice21)}</b></div><button onclick="refreshGoldPrice(true).then(()=>render('wealth'))" style="font-size:11px;color:var(--c-gold);background:none;border:none;cursor:pointer;margin-top:8px;font-weight:700">🔃 تحديث سعر الذهب</button></div>`;}
   el.innerHTML=html;
 }
