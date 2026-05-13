@@ -1361,8 +1361,19 @@ async function saveWallet(){
   const icon=document.querySelector('#w-icons .on')?.dataset.v||'💼';const color=document.querySelector('.color-row .on')?.dataset.v||'#4F6BED';
   const type=document.getElementById('wtype').value;const isMain=document.getElementById('w-is-main').value==='1';
   let payload={id,name,type,icon,color,isMain};
-  if(type==='gold'){payload.goldGrams=parseFloat(document.getElementById('w-grams').value)||0;payload.goldKarat=parseInt(document.getElementById('w-karat').value)||21;}
-  else{payload.openingBalance=parseFloat(document.getElementById('wbal').value)||0;}
+    
+    if(type==='gold'){
+      payload.goldGrams=parseFloat(document.getElementById('w-grams').value)||0;
+      payload.goldKarat=parseInt(document.getElementById('w-karat').value)||21;
+      
+      // FIX: Calculate the live fiat value of the gold and send it as openingBalance
+      const gp = S.goldPrice21 || 0;
+      const kf = KARAT_F[payload.goldKarat] || KARAT_F[21];
+      payload.openingBalance = parseFloat((payload.goldGrams * gp * kf).toFixed(3));
+    }
+    else{
+      payload.openingBalance=parseFloat(document.getElementById('wbal').value)||0;
+    }
   showLoad(true);try{if(id)await DB.updateWallet(payload);else await DB.addWallet(payload);closeM();toast(id?'تم تحديث المحفظة':'تمت إضافة المحفظة','ok');S.wallets=await DB.getWallets();await renderWallets();}catch(e){toast(e.message,'err');}showLoad(false);
 }
 async function delWalletFromModal(){const id=document.getElementById('wid').value;if(!id||!confirm('حذف هذه المحفظة؟'))return;showLoad(true);try{await DB.delWallet(id);closeM();toast('تم الحذف','ok');S.wallets=await DB.getWallets();await renderWallets();}catch(e){toast(e.message,'err');}showLoad(false);}
