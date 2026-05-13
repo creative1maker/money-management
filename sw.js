@@ -6,8 +6,8 @@
 //   • Everything else                    → Network-first, fallback to cache
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME  = 'mts-v2';
-const SHELL_CACHE = 'mts-shell-v2';
+const CACHE_NAME  = 'mts-v3';
+const SHELL_CACHE = 'mts-shell-v3';
 
 // Resources to pre-cache on install
 const SHELL = [
